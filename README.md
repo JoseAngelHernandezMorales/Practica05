@@ -1,2 +1,2 @@
 # Practica05
-Practica 5 de lamateria Sistemas Operativos
+Practica 5 de la materia Sistemas Operativos

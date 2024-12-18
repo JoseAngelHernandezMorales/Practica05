@@ -1,0 +1,49 @@
+# https://www.mkdocs.org/user-guide/configuration/
+repo_name: tareas-so
+repo_url: https://gitlab.com/SistemasOperativos-Ciencias-UNAM/2025-1/tareas-so
+edit_uri: -/tree/entregados/docs
+
+dev_addr: "localhost:1414"
+
+copyright: CC-BY-SA-4.0
+site_name: Sistemas Operativos - Tareas 2025-1
+site_description: Facultad de Ciencias - UNAM
+site_author: Sistemas Operativos de Computadoras
+site_url: https://SistemasOperativos-Ciencias-UNAM.gitlab.io/2025-1/tareas-so
+site_dir: public
+docs_dir: docs
+
+extra_css:
+- css/extra.css
+
+extra_javascript:
+- js/extra.js
+
+# https://www.mkdocs.org/user-guide/choosing-your-theme/
+theme:
+  name: mkdocs
+  # name: readthedocs
+  locale: es
+  navigation_depth: 4
+  collapse_navigation: true
+  titles_only: true
+  use_directory_urls: true
+  analytics:
+    gtag: G-L5N0M0PN8D
+  palette:
+    primary: green
+
+markdown_extensions:
+- toc:
+    permalink: "#"
+    separator: "-"
+- admonition
+- attr_list
+- def_list
+- extra
+- pymdownx.details
+
+plugins:
+- exclude:
+    glob:
+      - ".*.sw?"

@@ -1,0 +1,20 @@
+pre-commit~=3.3.2
+
+# Documentation static site generator & deployment tool
+# mkdocs>=1.1.2
+mkdocs~=1.4.3
+
+# https://www.mkdocs.org/user-guide/localizing-your-theme/
+mkdocs[i18n]
+
+# Add your custom theme if not inside a theme_dir
+# https://github.com/mkdocs/mkdocs/wiki/MkDocs-Themes
+#  mkdocs-material>=5.4.0
+mkdocs-material~=9.1.9
+mkdocs-material-extensions~=1.1.1
+
+# Plugins
+mkdocs-exclude~=1.0.2
+pymdown-extensions~=9.11
+mkdocs-pymdownx-material-extras~=2.4.2
+mkdocs-awesome-pages-plugin~=2.8.0

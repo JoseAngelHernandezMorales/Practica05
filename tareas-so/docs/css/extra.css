@@ -1,0 +1,196 @@
+/* extra.css */
+
+.bg-primary
+{
+  background-color: navy !important;
+  background-image: linear-gradient(dodgerblue, blue);
+}
+
+.table
+{
+  margin-left: auto;
+  margin-right: auto;
+  width: fit-content;
+}
+
+th
+{
+  text-align: center;
+}
+
+p, pre, table
+{
+  margin-top: 1em !important;
+  margin-bottom: 1em !important;
+}
+
+ul
+{
+  margin-top: unset !important;
+  margin-bottom: unset !important;
+}
+
+blockquote
+{
+  background-color: #f0f0f0;
+  font-style: italic;
+  padding: 10px;
+  margin: 10px;
+}
+
+.admonition
+{
+  margin-top: 1em !important;
+  margin-bottom: 1em !important;
+}
+
+.admonition > p
+{
+  margin-top: 0.3rem !important;
+  margin-bottom: 0.3rem !important;
+}
+
+details > summary
+{
+  padding: 1em;
+  width: 99%;
+  background-color: lightgoldenrodyellow;
+  border: 1px dotted silver;
+  box-shadow: 1px 1px 2px #bbbbbb;
+  cursor: pointer;
+}
+
+.yes
+{
+  font-size: 1.2em;
+  font-weight: bold;
+  color: green;
+}
+
+.no
+{
+  font-size: 1.2em;
+  font-weight: bold;
+  color: red;
+}
+
+.text-border
+{
+  text-shadow: -1px 1px 0 #000, 1px 1px 0 #000, 1px -1px 0 #000, -1px -1px 0 #000;
+}
+
+.red
+{
+  color: red;
+  font-weight: bold;
+}
+
+.green
+{
+  color: green;
+  font-weight: bold;
+}
+
+.blue
+{
+  color: blue;
+  font-weight: bold;
+}
+
+.gold
+{
+  color: gold;
+  font-weight: bold;
+}
+
+.title-image
+{
+  max-width: 75%;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.monospace
+{
+  font-family: 'Courier New', Courier, monospace;
+}
+
+a:link
+{
+  color: blue;
+}
+
+a:hover
+{
+  color: cornflowerblue;
+}
+
+a:active
+{
+  color: royalblue;
+}
+
+a:visited
+{
+  color: steelblue;
+}
+
+.note  a:link
+{
+  color: darkblue !important;
+}
+
+.note  a:hover
+{
+  color: blue !important;
+}
+
+.note  a:active
+{
+  color: royalblue !important;
+}
+
+.note  a:visited
+{
+  color: cornflowerblue !important;
+}
+
+.warning  a:link
+{
+  color: gold !important;
+}
+
+.warning  a:hover
+{
+  color: goldenrod !important;
+}
+
+.warning  a:active
+{
+  color: yellow !important;
+}
+
+.warning  a:visited
+{
+  color: sienna !important;
+}
+
+.danger  a:link
+{
+  color: red !important;
+}
+
+.danger  a:hover
+{
+  color: crimson !important;
+}
+
+.danger  a:active
+{
+  color: orangered !important;
+}
+
+.danger  a:visited
+{
+  color: darkred !important;
+}

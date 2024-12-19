@@ -127,7 +127,7 @@ void initialise_options(options *my_options)
 {
 
     my_options->loglevel = 999999;
-    my_options->portnum = 0;   /* invalid port - 1 is lowest IPv4 port */
+    my_options->portnum = 80;   /* invalid port - 1 is lowest IPv4 port */
     my_options->dnslookups = UNSET;
     my_options->foregroundonly = UNSET;
     memset(my_options->logfilename,0,sizeof(my_options->logfilename));

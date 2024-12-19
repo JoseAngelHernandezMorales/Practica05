@@ -37,6 +37,7 @@
 #define MEMCACHED_VERSION_COMMAND "printf 'version\r\n' | nc -U -w 1 /var/run/memcached/memcached.sock"
 #define MEMCACHED_STATS_SCRIPT "/var/www/html/memcached-stats.sh"
 #define MEMCACHED_JSON_SCRIPT "/var/www/html/api.json"
+#define ERROR_G "Error\r\n"
 
 
 
@@ -220,15 +221,209 @@ void generate_json(table_entry entry, char *json_output, size_t output_size) {
 }
 
 
+char* memcached_delete(int sockfd, const char *key) {
+    char buffer[BUFF_SIZE];
+
+    // Prepare the delete command
+    snprintf(buffer, BUFF_SIZE, "delete %s\r\n", key);
+
+    // Send the delete command to memcached
+    ssize_t bytes_written = write(sockfd, buffer, strlen(buffer));
+    if (bytes_written <= 0) {
+        return ERROR_G;
+    }
+
+    // Clear buffer and read response from memcached
+    memset(buffer, '\0', BUFF_SIZE);
+    ssize_t read_bytes = read(sockfd, buffer, BUFF_SIZE - 1);
+
+    // Check the response from memcached
+    if (read_bytes > 0) {
+        buffer[read_bytes] = '\0';  //no es necesario
+        if (strncmp(buffer, "DELETED", 7) == 0) {
+            return "DELETED";
+        } else if (strncmp(buffer, "NOT_FOUND", 9) == 0) {
+            return "NOT_FOUND";
+        } else {
+            return ERROR_G;
+        }
+    } else {
+        return ERROR_G;
+    }
+}
+
+void send_error_response(FILE *outgoing, const char *message) {
+    fprintf(outgoing, "HTTP/1.1 400 Bad Request\r\n");
+    fprintf(outgoing, "Content-Type: application/json; charset=UTF-8\r\n");
+    fprintf(outgoing, "Access-Control-Allow-Origin: *\r\n");
+    fprintf(outgoing, "Connection: close\r\n\r\n");
+    fprintf(outgoing, "{\"error\": \"%s\"}\r\n", message);
+    fflush(outgoing);
+}
+
+void handle_root_get(FILE *outgoing) {
+    FILE *file = fopen(MEMCACHED_JSON_SCRIPT, "r");
+    if (file == NULL) {
+        send_error_response(outgoing, "Could not open JSON file");
+        return;
+    }
+
+    fseek(file, 0, SEEK_END);
+    long file_size = ftell(file);
+    fseek(file, 0, SEEK_SET);
+
+    fprintf(outgoing, "HTTP/1.1 200 OK\r\n");
+    fprintf(outgoing, "Content-Type: application/json; charset=UTF-8\r\n");
+    fprintf(outgoing, "Access-Control-Allow-Origin: *\r\n");
+    fprintf(outgoing, "Connection: close\r\n");
+    fprintf(outgoing, "Content-Length: %lu\r\n\r\n", file_size);
+
+    char buffer[BUFF_SIZE];
+    while (fgets(buffer, sizeof(buffer), file) != NULL) {
+        fprintf(outgoing, "%s", buffer);
+    }
+
+    fflush(outgoing);
+    fclose(file);
+}
+
+void handle_version_get(FILE *outgoing) {
+    const char *jsonString = "{\n"
+                             "\t\"status\": {\n"
+                             "\t\t\"version\": \"0.0.1\",\n"
+                             "\t\t\"semestre\": \"2025-1\",\n"
+                             "\t\t\"equipo\": \"Equipo-ERLM-GZAL-HMJA-MVA\",\n"
+                             "\t\t\"integrantes\": {\n"
+                             "\t\t\t\"318287021\": \"Escobar Rosales Luis Mario\",\n"
+                             "\t\t\t\"318036104\": \"Garcia Zarraga Angelica Lizbeth\",\n"
+                             "\t\t\t\"319023275\": \"Hernandez Morales Jose Angel\"\n"
+                             "\t\t\t\"319023275\": \"Maldonado Vazquez Alegandro\"\n"
+                             "\t\t}\n"
+                             "\t}\n"
+                             "}";
+    fprintf(outgoing, "HTTP/1.1 200 OK\r\n");
+    fprintf(outgoing, "Content-Type: application/json; charset=UTF-8\r\n");
+    fprintf(outgoing, "Access-Control-Allow-Origin: *\r\n");
+    fprintf(outgoing, "Connection: close\r\n");
+    fprintf(outgoing, "Content-Length: %lu\r\n\r\n", strlen(jsonString));
+    fprintf(outgoing, "%s", jsonString);
+    fflush(outgoing);
+}
+
+void handle_estado_get(FILE *outgoing, int sockfd) {
+    char stats[512];
+    char jsonString[BUFF_SIZE];
+
+    handle_command(MEMCACHED_STATS_SCRIPT, stats, sizeof(stats));
+
+    snprintf(jsonString, sizeof(jsonString),
+             "{\n"
+             "  \"backend\": {\n"
+             "    \"socket\": \"%s\",\n"
+             "    \"version\": \"%s\",\n"
+             "    \"stats\": %s\n"
+             "  }\n"
+             "}\n",
+             SOCKET_PATH, "version", stats);
+
+    fprintf(outgoing, "HTTP/1.1 200 OK\r\n");
+    fprintf(outgoing, "Content-Type: application/json; charset=UTF-8\r\n");
+    fprintf(outgoing, "Access-Control-Allow-Origin: *\r\n");
+    fprintf(outgoing, "Connection: close\r\n");
+    fprintf(outgoing, "Content-Length: %lu\r\n\r\n", strlen(jsonString));
+    fprintf(outgoing, "%s", jsonString);
+    fflush(outgoing);
+}
 
 
+void handle_request(const char *endpoint, const char *method, int sockfd, FILE *outgoing, char *payload) {
+    if (strcmp(endpoint, "/") == 0 && strcmp(method, "GET") == 0) {
+        handle_root_get(outgoing);
+    } else if (strcmp(endpoint, "/version") == 0 && strcmp(method, "GET") == 0) {
+        handle_version_get(outgoing);
+    } else if (strcmp(endpoint, "/estado") == 0 && strcmp(method, "GET") == 0) {
+        handle_estado_get(outgoing, sockfd);
+    } else if (strncmp(endpoint, "/dia", 4) == 0) {
+        // Implement handlers for "/dia" endpoint based on method
+        // `/dia` endpoint handlers can also be modularized
+    } else {
+        send_error_response(outgoing, "Unknown endpoint or HTTP method");
+    }
+}
 
+void cleanup_resources(FILE *incoming, FILE *outgoing, char *data) {
+    if (data) free(data);
+    if (outgoing) fclose(outgoing);
+    if (incoming) fclose(incoming);
+}
 
+void daemon_child_function(FILE *incoming, FILE *outgoing, char *incoming_name) {
+    int ignore;
+    char message[BUFF_SIZE] = {0};
+    char method[8] = {0};
+    char endpoint[128] = {0};
+    int content_length = 0;  // Stores the Content-Length value
+    char line[BUFF_SIZE] = {0};
+    char *data = NULL;
 
+    // Connect to Memcached
+    int sockfd = memcache_conection();
+    if (sockfd == -1) {
+        fprintf(outgoing, "Content-Type: text/plain\r\nError: Could not connect to Memcached\n");
+        fflush(outgoing);
+        fclose(outgoing);
+        fclose(incoming);
+        _exit(EXIT_FAILURE);
+    }
 
+    LOG(1, ("Receiving message\n"));
 
+    // Read headers
+    while (fgets(line, sizeof(line), incoming) != NULL) {
+        // End of headers
+        if (strcmp(line, "\r\n") == 0) {
+            strcat(message, line);
+            break;
+        }
 
+        // Check for Content-Length header
+        if (strncmp(line, "Content-Length:", 15) == 0) {
+            content_length = atoi(line + 15);
+        }
 
-int main() {
-    return 0 ;
+        strncat(message, line, sizeof(message) - strlen(message) - 1);
+    }
+
+    // Read body if Content-Length > 0
+    if (content_length > 0) {
+        size_t bytes_to_read = content_length;
+        while (bytes_to_read > 0) {
+            size_t read_now = fread(line, 1, (bytes_to_read > sizeof(line) ? sizeof(line) : bytes_to_read), incoming);
+            if (read_now <= 0) break;
+
+            strncat(message, line, read_now);
+            bytes_to_read -= read_now;
+        }
+    }
+
+    // Ensure the message is null-terminated
+    message[BUFF_SIZE - 1] = '\0';
+
+    // Parse method and endpoint
+    sscanf(message, "%7s %127s", method, endpoint);
+
+    // Extract body
+    char *body_start = strstr(message, "\r\n\r\n");
+    if (body_start != NULL) {
+        body_start += 4;
+        if (content_length > 0) {
+            data = strndup(body_start, content_length);
+        }
+    }
+
+    LOG(1, ("Handling request\n"));
+    handle_request(endpoint, method, sockfd, outgoing, data);
+
+    cleanup_resources(incoming, outgoing, data);
+    _exit(EXIT_SUCCESS);
 }

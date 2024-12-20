@@ -96,9 +96,31 @@ void handle_command(const char *command, char *result, int max_len) {
 }
 
 int save_data(int sockfd, table_entry *data) {
- return 0;
+    char buffer[BUFF_SIZE];
+    char values[512] = "";
+    snprintf(values, 512, "%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d",
+             data->values[0],
+             data->values[1],
+             data->values[2],
+             data->values[3],
+             data->values[4],
+             data->values[5],
+             data->values[6],
+             data->values[7],
+             data->values[8],
+             data->values[9]);
+    snprintf(buffer, BUFF_SIZE, "set %s 0 0 %lu\r\n%s\r\n", data->key, strlen(values), values);
+    printf("%s", buffer);
+    write(sockfd, buffer, strlen(buffer));
+    memset(buffer, 0, BUFF_SIZE);
+    read(sockfd, buffer, BUFF_SIZE);
+
+    if (strncmp(buffer, "STORED", 6) != 0)
+        return -1;
+    return 0;
 
 }
+
 
 
 void parse_numbers(char *input, int *numbers) {
@@ -138,7 +160,7 @@ void parse_numbers(char *input, int *numbers) {
 
 
 
-table_entry get_data(int sockfd, char *key) {
+table_entry get_data(int sockfd, const char *key) {
     char buffer[BUFF_SIZE];  // Fixed-size array for buffer
     table_entry t_data;
     memset(&t_data, 0, sizeof(t_data));  
@@ -294,10 +316,10 @@ void handle_version_get(FILE *outgoing) {
                              "\t\t\"semestre\": \"2025-1\",\n"
                              "\t\t\"equipo\": \"Equipo-ERLM-GZAL-HMJA-MVA\",\n"
                              "\t\t\"integrantes\": {\n"
-                             "\t\t\t\"318287021\": \"Escobar Rosales Luis Mario\",\n"
-                             "\t\t\t\"318036104\": \"Garcia Zarraga Angelica Lizbeth\",\n"
-                             "\t\t\t\"319023275\": \"Hernandez Morales Jose Angel\"\n"
-                             "\t\t\t\"319023275\": \"Maldonado Vazquez Alegandro\"\n"
+                             "\t\t\t\"420003818\": \"Escobar Rosales Luis Mario\",\n"
+                             "\t\t\t\"316127927\": \"Garcia Zarraga Angelica Lizbeth\",\n"
+                             "\t\t\t\"315137903\": \"Hernandez Morales Jose Angel\",\n"
+                             "\t\t\t\"317042766\": \"Maldonado Vazquez Alegandro\"\n"
                              "\t\t}\n"
                              "\t}\n"
                              "}";
@@ -336,6 +358,84 @@ void handle_estado_get(FILE *outgoing, int sockfd) {
 }
 
 
+void handle_dia_post(FILE *outgoing, int sockfd, const char *key, char *payload) {
+    table_entry entry;
+    // Aquí deberías procesar el payload, por ejemplo, parsearlo en un formato adecuado.
+    // En este caso, simplemente podemos asumir que el payload contiene los datos en formato JSON.
+
+    // Suponiendo que payload tiene la clave y los valores, asignamos estos a entry:
+    sscanf(payload, "{\"key\": \"%s\", \"values\": [%d,%d,%d,%d,%d,%d,%d,%d,%d,%d]}", 
+           entry.key, 
+           &entry.values[0], &entry.values[1], &entry.values[2], &entry.values[3], 
+           &entry.values[4], &entry.values[5], &entry.values[6], &entry.values[7], 
+           &entry.values[8], &entry.values[9]);
+    
+    // Aquí puedes agregar la lógica para guardar los datos en Memcached. Como ejemplo, usaremos save_data.
+    int save_result = save_data(sockfd, &entry);
+    
+    if (save_result == 0) {
+        fprintf(outgoing, "HTTP/1.1 201 Created\r\n");
+        fprintf(outgoing, "Content-Type: application/json; charset=UTF-8\r\n");
+        fprintf(outgoing, "Access-Control-Allow-Origin: *\r\n");
+        fprintf(outgoing, "Connection: close\r\n");
+        fprintf(outgoing, "{\"message\": \"Data added successfully\"}\r\n");
+    } else {
+        send_error_response(outgoing, "Failed to add data");
+    }
+}
+void handle_dia_put(FILE *outgoing, int sockfd, const char *key, char *payload) {
+    table_entry entry;
+    sscanf(payload, "{\"key\": \"%s\", \"values\": [%d,%d,%d,%d,%d,%d,%d,%d,%d,%d]}", 
+           entry.key, 
+           &entry.values[0], &entry.values[1], &entry.values[2], &entry.values[3], 
+           &entry.values[4], &entry.values[5], &entry.values[6], &entry.values[7], 
+           &entry.values[8], &entry.values[9]);
+    
+    // Usamos el comando "set" para modificar los datos en Memcached.
+    int save_result = save_data(sockfd, &entry);
+    
+    if (save_result == 0) {
+        fprintf(outgoing, "HTTP/1.1 200 OK\r\n");
+        fprintf(outgoing, "Content-Type: application/json; charset=UTF-8\r\n");
+        fprintf(outgoing, "Access-Control-Allow-Origin: *\r\n");
+        fprintf(outgoing, "Connection: close\r\n");
+        fprintf(outgoing, "{\"message\": \"Data modified successfully\"}\r\n");
+    } else {
+        send_error_response(outgoing, "Failed to modify data");
+    }
+}
+void handle_dia_delete(FILE *outgoing, int sockfd, const char *key) {
+    char *result = memcached_delete(sockfd, key);
+
+    if (strcmp(result, "DELETED") == 0) {
+        fprintf(outgoing, "HTTP/1.1 200 OK\r\n");
+        fprintf(outgoing, "Content-Type: application/json; charset=UTF-8\r\n");
+        fprintf(outgoing, "Access-Control-Allow-Origin: *\r\n");
+        fprintf(outgoing, "Connection: close\r\n");
+        fprintf(outgoing, "{\"message\": \"Data deleted successfully\"}\r\n");
+    } else {
+        send_error_response(outgoing, "Failed to delete data");
+    }
+}
+
+void handle_dia_get(FILE *outgoing, int sockfd, const char *key) {
+    // Obtener datos de Memcached usando el comando GET
+    table_entry entry = get_data(sockfd, key);
+
+    // Crear el JSON con los datos obtenidos
+    char json_output[BUFF_SIZE];
+    generate_json(entry, json_output, sizeof(json_output));
+
+    // Enviar la respuesta HTTP con el JSON generado
+    fprintf(outgoing, "HTTP/1.1 200 OK\r\n");
+    fprintf(outgoing, "Content-Type: application/json; charset=UTF-8\r\n");
+    fprintf(outgoing, "Access-Control-Allow-Origin: *\r\n");
+    fprintf(outgoing, "Connection: close\r\n");
+    fprintf(outgoing, "Content-Length: %lu\r\n\r\n", strlen(json_output));
+    fprintf(outgoing, "%s", json_output);
+    fflush(outgoing);
+}
+
 void handle_request(const char *endpoint, const char *method, int sockfd, FILE *outgoing, char *payload) {
     if (strcmp(endpoint, "/") == 0 && strcmp(method, "GET") == 0) {
         handle_root_get(outgoing);
@@ -344,8 +444,19 @@ void handle_request(const char *endpoint, const char *method, int sockfd, FILE *
     } else if (strcmp(endpoint, "/estado") == 0 && strcmp(method, "GET") == 0) {
         handle_estado_get(outgoing, sockfd);
     } else if (strncmp(endpoint, "/dia", 4) == 0) {
-        // Implement handlers for "/dia" endpoint based on method
-        // `/dia` endpoint handlers can also be modularized
+        const char *key = endpoint + 5;  // Suponiendo que el formato es /dia/{key}
+
+        if (strcmp(method, "GET") == 0) {
+            handle_dia_get(outgoing, sockfd, key);  // Ver
+        } else if (strcmp(method, "POST") == 0) {
+            handle_dia_post(outgoing, sockfd, key, payload);  // Agregar
+        } else if (strcmp(method, "PUT") == 0) {
+            handle_dia_put(outgoing, sockfd, key, payload);  // Modificar
+        } else if (strcmp(method, "DELETE") == 0) {
+            handle_dia_delete(outgoing, sockfd, key);  // Borrar
+        } else {
+            send_error_response(outgoing, "Unknown method for /dia");
+        }
     } else {
         send_error_response(outgoing, "Unknown endpoint or HTTP method");
     }

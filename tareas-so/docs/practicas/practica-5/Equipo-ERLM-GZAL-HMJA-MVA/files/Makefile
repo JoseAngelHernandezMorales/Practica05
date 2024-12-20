@@ -1,24 +1,42 @@
-SHELL=/bin/bash
-# https://gcc.gnu.org/gcc-10/porting_to.html
-# > Legacy C code where all tentative definitions should be placed
-# > into a common block can be compiled with '-fcommon'.
-CFLAGS = -g -fcommon
-CC     = gcc
+SHELL := /bin/bash
+CFLAGS := -g -fcommon
+CC := gcc
 
-ALL_D    = daemon.c log.c util.c lockfile.c socket.c confdata.c daemon-child-func.c
+SOURCES := daemon.c log.c util.c lockfile.c socket.c confdata.c daemon-child-func.c
+TARGET := daemon
 
-daemon: $(ALL_D)
-	$(CC) -o daemon $(CFLAGS) $(ALL_D)
+.PHONY: all
+all: setup dependencies build deploy test
+
+setup:
+	@echo "Preparando entorno..."
+
+dependencies:
+	@echo "Instalando dependencias necesarias..."
+	sudo apt-get update && sudo apt-get install -y \
+		memcached apache2
+	sudo install -v -o root -g root -m 0644 memcached /etc/default/memcached
+	sudo install -v -o root -g root -m 0644 memcached.conf /etc/memcached.conf
+	sudo install -v -o root -g root -m 0644 ports.conf /etc/apache2/ports.conf
+	sudo install -v -o root -g root -m 0644 make.conf /etc/apache2/sites-available/make.conf
+	sudo mkdir -p /var/run/memcached && sudo chmod 777 /var/run/memcached
+	sudo service memcached start
+	ps aux | grep memcached || true
+
+build: $(SOURCES)
+	@echo "Compilando $(TARGET)..."
+	$(CC) $(CFLAGS) -o $(TARGET) $(SOURCES)
+
+deploy:
+	@echo "Moviendo archivos de la API..."
+	sudo cp api.json /var/www/html/
+	sudo cp memcached-stats.sh /var/www/html/
+
+test: deploy
+	@echo "Ejecutando pruebas..."
+	sudo ./pruebas.sh
 
 .PHONY: clean
 clean:
-	-rm -v -f *.o daemon \#*\# *~ logfile
-
-debug-strace:	daemon
-	@echo ""
-	@echo "* To debug this daemon run the following in the shell with strace"
-	@echo "* Then, open the client and send requests"
-	@echo "* At the end, terminate the daemon with ^C"
-	@echo "* The log will be saved as logfile"
-	@echo ""
-	@echo "strace ./daemon -F -d 9 2>&1 | tee logfile"
+	@echo "Limpiando archivos generados..."
+	rm -fv *.o $(TARGET) *~ logfile

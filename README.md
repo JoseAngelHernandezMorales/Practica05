@@ -46,7 +46,7 @@ Define las tareas para la configuración del entorno, compilación, despliegue y
 
 ## Estructura del Proyecto
 
-
+```text
 .
 ├── daemon.c
 ├── log.c
@@ -63,6 +63,7 @@ Define las tareas para la configuración del entorno, compilación, despliegue y
 ├── memcached-stats.sh
 ├── pruebas.sh
 ├── Makefile
+```
 
 
 ## Servidor API REST
